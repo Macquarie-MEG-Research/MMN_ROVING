@@ -7,11 +7,9 @@
 %
 % INPUTS:
 % - hipass        = cutoff for hipass filter
-% - standard_num         = which standard tone to use as the "standard": a
-% number in the sequence
 
 %*******************************************************
-%You need 1 only .con file and the oddball run .txt file 
+%You need 1 only .con file and the oddball run .txt file
 %*******************************************************
 
 % EXAMPLE FUNCTION CALL:
@@ -24,7 +22,7 @@
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function MMN_child_FT(hipass,standard_num) %hipass filter, which standard you want to use
+function MMN_child_FT(hipass) %hipass filter, which standard you want to use
 
 downsample_factor = 5; %i.e. divide the orig sample rate by 5
 
@@ -92,7 +90,7 @@ cfg.trl(:,3) = round(cfg.trl(:,3)/downsample_factor);
 
 %Epoch the data - first find trial indices corresponding to the events
 %of interest and group
-data = ft_redefinetrial(cfg,data);
+data          = ft_redefinetrial(cfg,data);
 trigger_types = [cfg.event.value]';
 
 cfg             = [];
@@ -101,49 +99,60 @@ cfg.keepchannel = 'yes';
 cfg.keeptrial   = 'nan';
 data            = ft_rejectvisual(cfg, data);
 
-deviant  = find(ismember(trigger_types,1)); %trigger number 1 is first deviant
-standard = find(ismember(trigger_types,standard_num));
+deviant = find(ismember(trigger_types,1)); %trigger number 1 is first deviant
+
+for i=1:5
+    eval(['standard_',num2str(i),' = find(ismember(trigger_types,',num2str(i+1),'));']);
+end
 
 good_trials_idx = find(any(~isnan(cell2mat(cellfun(@(isgood)isgood(:),data.trial,'uni',0))),1)); % bad trial are NaN
 
-cfg          = [];
-cfg.trials   = intersect(standard,good_trials_idx);
-standard_ave = ft_timelockanalysis(cfg,data);
+for i=1:5
+    cfg = [];
+    eval(['cfg.trials   = intersect(standard_',num2str(i),',good_trials_idx);'])
+    eval(['standard_',num2str(i),'_ave = ft_timelockanalysis(cfg,data);'])
+end
 
 cfg.trials  = intersect(deviant,good_trials_idx);
 deviant_ave = ft_timelockanalysis(cfg,data);
 
+c              = autumn;
+cfg            = [];
+cfg.layout     = lay;
+cfg.xlim       = [-0.1 0.5];
+cfg.graphcolor = ([c(1:10:50,:);[0 0 0]]);
+figure;ft_multiplotER(cfg,standard_1_ave,standard_2_ave,standard_3_ave,standard_4_ave,standard_5_ave,deviant_ave);
+
 cfg        = [];
-cfg.layout = lay;
-cfg.xlim   = [-0.1 0.5];
-figure;ft_multiplotER(cfg,standard_ave,deviant_ave);
+cfg.method = 'power';
+for i=1:5
+    eval(['standard_',num2str(i),'_GFP = ft_globalmeanfield(cfg, standard_',num2str(i),'_ave);'])
+end
 
-cfg          = [];
-cfg.method   = 'power';
-standard_GFP = ft_globalmeanfield(cfg, standard_ave);
-deviant_GFP  = ft_globalmeanfield(cfg, deviant_ave);
+deviant_GFP = ft_globalmeanfield(cfg, deviant_ave);
 
-cfg      = [];
-cfg.xlim = [-0.1 0.5];
-cfg.title='Global Field Power';
-figure;subplot(4,2,1);ft_singleplotER(cfg,standard_GFP,deviant_GFP)
+cfg       = [];
+cfg.xlim  = [-0.1 0.5];
+cfg.title = 'Global Field Power';
+cfg.graphcolor = ([c(1:10:50,:);[0 0 0]]);
+figure;subplot(4,2,1);ft_singleplotER(cfg,standard_1_GFP,standard_2_GFP,standard_3_GFP,standard_4_GFP,standard_5_GFP,deviant_GFP)
 hold on
-legend('standard','deviant')
+legend('standard_1','standard_2','standard_3','standard_4','standard_5','deviant')
 
-cfg=[];
-cfg.method    = 'triangulation';
-neighbours       = ft_prepare_neighbours(cfg, data.grad); %To get neigbours of the pak for plotting
+cfg        = [];
+cfg.method = 'triangulation';
+neighbours = ft_prepare_neighbours(cfg, data.grad); %To get neigbours of the pak for plotting
 
 %%find peak amplitude in M100 window and find the index - this will be used
 %%for plotting
-window_time = standard_GFP.time(standard_GFP.time>0.1&standard_GFP.time<0.2);
-peak_time   = window_time(ismember(standard_GFP.avg(find(standard_GFP.time>0.1&standard_GFP.time<0.2)),...
-    max(standard_GFP.avg(find(standard_GFP.time>0.1&standard_GFP.time<0.2)))));
-peak_amp    = standard_GFP.avg(ismember(standard_GFP.avg(find(standard_GFP.time>0.1&standard_GFP.time<0.2)),...
-    max(standard_GFP.avg(find(standard_GFP.time>0.1&standard_GFP.time<0.2)))));
-peak_index  = find(ismember(standard_GFP.time,peak_time));
-peak_amps=standard_ave.avg(:,peak_index);
-elec_idxs = find(ismember(peak_amps,max(peak_amps)));
+window_time = standard_5_GFP.time(standard_5_GFP.time>0.1&standard_5_GFP.time<0.2);
+peak_time   = window_time(ismember(standard_5_GFP.avg(find(standard_5_GFP.time>0.1&standard_5_GFP.time<0.2)),...
+    max(standard_5_GFP.avg(find(standard_5_GFP.time>0.1&standard_5_GFP.time<0.2)))));
+peak_amp    = standard_5_GFP.avg(ismember(standard_5_GFP.avg(find(standard_5_GFP.time>0.1&standard_5_GFP.time<0.2)),...
+    max(standard_5_GFP.avg(find(standard_5_GFP.time>0.1&standard_5_GFP.time<0.2)))));
+peak_index  = find(ismember(standard_5_GFP.time,peak_time));
+peak_amps   = standard_5_ave.avg(:,peak_index);
+elec_idxs   = find(ismember(peak_amps,max(peak_amps)));
 
 
 %%Plots below
@@ -153,18 +162,18 @@ cfg.layout           = lay;
 cfg.highlight        = 'on';
 cfg.highlightchannel = vertcat(neighbours(elec_idxs).neighblabel,neighbours(elec_idxs).label);
 
-subplot(4,2,[2 4]);ft_topoplotER(cfg,standard_ave)
+subplot(4,2,[2 4]);ft_topoplotER(cfg,standard_5_ave)
 
-cfg=[];
-cfg.channel      = vertcat(neighbours(elec_idxs).neighblabel,neighbours(elec_idxs).label);
-cfg.avgoverchan  = 'yes';
-cfg.nanmean      = 'yes';
-standard_ave_ROI = ft_selectdata(cfg,standard_ave);
-deviant_ave_ROI = ft_selectdata(cfg,deviant_ave);
+cfg                = [];
+cfg.channel        = vertcat(neighbours(elec_idxs).neighblabel,neighbours(elec_idxs).label);
+cfg.avgoverchan    = 'yes';
+cfg.nanmean        = 'yes';
+standard_5_ave_ROI = ft_selectdata(cfg,standard_5_ave);
+deviant_ave_ROI    = ft_selectdata(cfg,deviant_ave);
 
-cfg=[];
-cfg.xlim = [-0.1 0.5];
-cfg.title='Peak Cluster';
-subplot(4,2,3);ft_singleplotER(cfg,standard_ave_ROI,deviant_ave_ROI)
+cfg       = [];
+cfg.xlim  = [-0.1 0.5];
+cfg.title = 'Peak Cluster';
+subplot(4,2,3);ft_singleplotER(cfg,standard_5_ave_ROI,deviant_ave_ROI)
 legend('standard','deviant')
 end
