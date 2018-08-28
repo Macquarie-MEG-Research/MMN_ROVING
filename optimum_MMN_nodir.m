@@ -22,9 +22,9 @@ portoutput     = logical(portoutput); % This is a flag to indicate whether you w
 %Hardcoded levels
 %%%%
 
-halfk_vol       = [0.12 0.62];
-onek_vol        = [0.2 1.0];
-oneandhalfk_vol = [0.15 1.0];
+halfk_vol       = [0.12 0.5 0.62];
+onek_vol        = [0.2 0.5 1.0];
+oneandhalfk_vol = [0.15 0.5 1.0];
 
 if base_frequency==500
     vol = halfk_vol;
@@ -95,7 +95,7 @@ waitForDeviceStart = 1;
 % (5) 2 = stereo putput
 %pahandle = PsychPortAudio('Open', [], 1, 1, freq, nrchannels);
 
-pahandle = PsychPortAudio('Open', [], [], 0, freq, nrchannels);
+pahandle = PsychPortAudio('Open', [], 1, 0, freq, nrchannels);
 
 % Set the volume to half for this demo
 
@@ -179,7 +179,7 @@ start_idxs  = 1:beep_length:(6*beep_length+1);
 start_idxs  = [start_idxs start_idxs(end)+beep_length/3];
 end_idxs    = beep_length:beep_length:beep_length*6;
 end_idxs    = [end_idxs end_idxs(end)+beep_length/3];%duration deviant is 1/3 length
-volumes     = [ones(1,4)*0.5 vol(1) vol(2) 0.5]; %set the volumes INCLUDES SETTING INTENSITY DEVIANT
+volumes     = [ones(1,4)*vol(2) vol(1) vol(3) vol(2)]; %set the volumes INCLUDES SETTING INTENSITY DEVIANT
 port_codes  = 33:39; % Use this array to assign port codes
 
 % figure;
@@ -203,7 +203,20 @@ else
 end
 
 tic
-
+%% the below is a hacked cycle for windows machine
+    PsychPortAudio('SetLoop',pahandle,start_idxs(seq(1)),start_idxs(seq(1)))
+    PsychPortAudio('Volume', pahandle, volumes(seq(1)));
+    [~, ~, ~, estStopTime] = PsychPortAudio('Stop', pahandle, 1, 1);
+    
+    % Compute new start time for follow-up beep, beepPauseTime after end of
+    % previous one
+    startCue = estStopTime + beepPauseTime;
+    
+    % Start audio playback
+    PsychPortAudio('Start', pahandle, repetitions, startCue, waitForDeviceStart);
+    PsychPortAudio('Stop', pahandle, 1, 1);
+%%    
+%PsychPortAudio('Stop', pahandle, 1, 1);
 for i =1:length(seq)
     PsychPortAudio('SetLoop',pahandle,start_idxs(seq(i)),end_idxs(seq(i)))
     PsychPortAudio('Volume', pahandle, volumes(seq(i)));
